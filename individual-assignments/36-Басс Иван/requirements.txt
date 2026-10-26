@@ -1,0 +1,5 @@
+numpy>=1.26
+pandas>=2.0
+matplotlib>=3.8
+scikit-learn>=1.5   # в TSNE параметр max_iter (ранее n_iter) появился в 1.5
+jupyter
