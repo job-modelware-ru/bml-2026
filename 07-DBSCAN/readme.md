@@ -8,14 +8,14 @@
 - `src/main.py` — запуск программы, выбор CSV-файла, ввод параметров и построение графика.
 - `src/generate_data.py` — генерация трёх наборов данных.
 - `src/points.csv` — набор для численного примера из презентации.
-- `requirements.txt` — зависимости.
+- `src/requirements.txt` — зависимости.
 
 
 ## Запуск
 
 ```bash
 cd путь/к/проекту/DBSCAN
-python -m pip install -r requirements.txt
+python -m pip install -r src/requirements.txt
 python src/generate_data.py
 python src/main.py
 ```

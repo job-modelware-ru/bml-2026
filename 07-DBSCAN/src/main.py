@@ -24,45 +24,44 @@ def load_points(path: Path) -> np.ndarray:
 def plot_result(points: np.ndarray, labels: list[int], eps: float, min_samples: int, output: Path, show: bool = True) -> None:
     #сохраняет график кластеров, выделяет типы точек и открывает окно графика
     figsize = (8, 6) if len(points) <= 30 else (11, 6)
+    one_feature = points.shape[1] == 1
+    if one_feature:
+        figsize = (figsize[0], 2.4)
     fig, ax = plt.subplots(figsize=figsize)
     point_size = 65 if len(points) <= 30 else 14
     label_array = np.asarray(labels)
     is_core = np.array([len(find_neighbours(points, i, eps)) >= min_samples for i in range(len(points))], dtype=bool)
-    if points.shape[1] == 1:
-        plot_x = np.arange(len(points))
-        plot_y = points[:, 0]
-        x_label = "Номер точки"
-        y_label = "Признак 1"
-    else:
-        plot_x = points[:, 0]
-        plot_y = points[:, 1]
-        x_label = "Признак 1"
-        y_label = "Признак 2"
+    plot_x = points[:, 0]
+    plot_y = np.zeros(len(points)) if one_feature else points[:, 1]
+    if one_feature:
+        point_size = 12
     for cluster in sorted(set(labels) - {NOISE}):
         color = plt.get_cmap("tab10")(cluster % 10)
         core_mask = (label_array == cluster) & is_core
         border_mask = (label_array == cluster) & ~is_core
         if np.any(core_mask):
-            ax.scatter(
-                plot_x[core_mask], plot_y[core_mask], s=point_size,
-                color=color, label=f"Кластер {cluster}: центральные",
-            )
+            ax.scatter(plot_x[core_mask], plot_y[core_mask], s=point_size, color=color, label=f"Кластер {cluster}: центральные")
         if np.any(border_mask):
-            ax.scatter(
-                plot_x[border_mask], plot_y[border_mask], s=point_size + 15,
-                facecolors="none", edgecolors=color, linewidths=1.3,
-                label=f"Кластер {cluster}: граничные",
-            )
+            ax.scatter(plot_x[border_mask], plot_y[border_mask], s=point_size + 15, facecolors="none", edgecolors=color, linewidths=1.3, label=f"Кластер {cluster}: граничные")
     noise_mask = label_array == NOISE
     if np.any(noise_mask):
-        ax.scatter(plot_x[noise_mask], plot_y[noise_mask], c="black", marker="x", s=85, label="Шум")
+        ax.scatter(plot_x[noise_mask], plot_y[noise_mask], c="black", marker="x", s=30 if one_feature else 85, label="Шум")
+
+    ax.set_xlabel("Признак 1")
+    if one_feature:
+        ax.yaxis.set_visible(False)
+        for side in ("left", "right", "top"):
+            ax.spines[side].set_visible(False)
+        ax.spines["bottom"].set_position(("data", 0))
+        ax.spines["bottom"].set_zorder(0.5)
+        ax.set_ylim(-0.5, 0.5)
+    else:
+        ax.set_ylabel("Признак 2")
+        ax.set_aspect("equal", adjustable="datalim")
+        ax.grid(alpha=0.25)
     ax.set_title(f"{len(points)} точек, eps = {eps}, min_samples = {min_samples}")
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
     if points.shape[1] > 2:
         ax.set_title(f"Первые два признака из {points.shape[1]}, {len(points)} точек, eps = {eps}, min_samples = {min_samples}")
-    ax.set_aspect("equal", adjustable="datalim")
-    ax.grid(alpha=0.25)
     if len(points):
         ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), borderaxespad=0)
     fig.tight_layout()
