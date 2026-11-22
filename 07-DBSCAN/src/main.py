@@ -1,4 +1,3 @@
-import csv
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -18,46 +17,51 @@ def choose_dataset(project_dir: Path) -> Path:
 
 
 def load_points(path: Path) -> np.ndarray:
-    #читает csv-файл с заголовком x,y и возвращает массив координат точек
-    with path.open(encoding="utf-8-sig", newline="") as file:
-        reader = csv.reader(file)
-        next(reader, None)
-        rows = []
-        for row in reader:
-            if not row:
-                continue
-            rows.append([float(value) for value in row])
-    return np.array(rows, dtype=float)
+    #читает csv-файл без заголовка и возвращает массив координат точек
+    return np.loadtxt(path, delimiter=",", ndmin=2)
 
 
 def plot_result(points: np.ndarray, labels: list[int], eps: float, min_samples: int, output: Path, show: bool = True) -> None:
     #сохраняет график кластеров, выделяет типы точек и открывает окно графика
-    fig, ax = plt.subplots(figsize=(11, 6))
+    figsize = (8, 6) if len(points) <= 30 else (11, 6)
+    fig, ax = plt.subplots(figsize=figsize)
     point_size = 65 if len(points) <= 30 else 14
     label_array = np.asarray(labels)
     is_core = np.array([len(find_neighbours(points, i, eps)) >= min_samples for i in range(len(points))], dtype=bool)
+    if points.shape[1] == 1:
+        plot_x = np.arange(len(points))
+        plot_y = points[:, 0]
+        x_label = "Номер точки"
+        y_label = "Признак 1"
+    else:
+        plot_x = points[:, 0]
+        plot_y = points[:, 1]
+        x_label = "Признак 1"
+        y_label = "Признак 2"
     for cluster in sorted(set(labels) - {NOISE}):
         color = plt.get_cmap("tab10")(cluster % 10)
-        core_points = points[(label_array == cluster) & is_core]
-        border_points = points[(label_array == cluster) & ~is_core]
-        if len(core_points):
+        core_mask = (label_array == cluster) & is_core
+        border_mask = (label_array == cluster) & ~is_core
+        if np.any(core_mask):
             ax.scatter(
-                core_points[:, 0], core_points[:, 1], s=point_size,
+                plot_x[core_mask], plot_y[core_mask], s=point_size,
                 color=color, label=f"Кластер {cluster}: центральные",
             )
-        if len(border_points):
+        if np.any(border_mask):
             ax.scatter(
-                border_points[:, 0], border_points[:, 1], s=point_size + 15,
+                plot_x[border_mask], plot_y[border_mask], s=point_size + 15,
                 facecolors="none", edgecolors=color, linewidths=1.3,
                 label=f"Кластер {cluster}: граничные",
             )
-    noise = points[label_array == NOISE]
-    if len(noise):
-        ax.scatter(noise[:, 0], noise[:, 1], c="black", marker="x", s=85, label="Шум")
+    noise_mask = label_array == NOISE
+    if np.any(noise_mask):
+        ax.scatter(plot_x[noise_mask], plot_y[noise_mask], c="black", marker="x", s=85, label="Шум")
     ax.set_title(f"{len(points)} точек, eps = {eps}, min_samples = {min_samples}")
-    ax.set_xlabel("Признак 1")
-    ax.set_ylabel("Признак 2")
-    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    if points.shape[1] > 2:
+        ax.set_title(f"Первые два признака из {points.shape[1]}, {len(points)} точек, eps = {eps}, min_samples = {min_samples}")
+    ax.set_aspect("equal", adjustable="datalim")
     ax.grid(alpha=0.25)
     if len(points):
         ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), borderaxespad=0)
@@ -79,6 +83,13 @@ def main() -> None:
     min_samples = int(input("введите min_samples: "))
     labels, _ = dbscan(points, eps, min_samples)
     print("использован набор данных:", data_file.name)
+    point_names = ["A", "B", "C", "D", "E", "F", "G", "H"] if data_file.name == "points.csv" else None
+    for cluster in sorted(set(labels) - {NOISE}):
+        members = [point_names[i] if point_names else str(i + 1) for i, label in enumerate(labels) if label == cluster]
+        print(f"кластер {cluster}: {', '.join(members)}")
+    noise = [point_names[i] if point_names else str(i + 1) for i, label in enumerate(labels) if label == NOISE]
+    if noise:
+        print(f"шумовые точки: {', '.join(noise)}")
     output = project_dir / "results" / f"{data_file.stem}_eps_{eps}_min_{min_samples}.png"
     plot_result(points, labels, eps, min_samples, output)
 
